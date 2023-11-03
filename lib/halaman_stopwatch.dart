@@ -1,5 +1,4 @@
 import 'dart:async';
-
 import 'package:flutter/material.dart';
 
 class StopwatchPage extends StatefulWidget {
@@ -9,8 +8,12 @@ class StopwatchPage extends StatefulWidget {
 
 class _StopwatchPageState extends State<StopwatchPage> {
   bool isRunning = false;
+  int hours = 0;
+  int minutes = 0;
   int seconds = 0;
+  int milliseconds = 0;
   late final Stopwatch _stopwatch;
+  List<String> laps = [];
 
   @override
   void initState() {
@@ -23,14 +26,20 @@ class _StopwatchPageState extends State<StopwatchPage> {
     return Scaffold(
       appBar: AppBar(
         title: Text('Stopwatch'),
+        backgroundColor: Color.fromARGB(255, 6, 45, 78),
+        shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.vertical(
+          bottom: Radius.circular(20),
+        )),
       ),
+      backgroundColor: Colors.white,
       body: Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             Text(
-              formatTime(seconds),
-              style: TextStyle(fontSize: 48),
+              formatTime(),
+              style: TextStyle(fontSize: 48, color: Colors.black),
             ),
             SizedBox(height: 20),
             Row(
@@ -48,21 +57,49 @@ class _StopwatchPageState extends State<StopwatchPage> {
                       isRunning = !isRunning;
                     });
                   },
-                  child: Text(isRunning ? 'Stop' : 'Start'),
+                  child: Text(isRunning ? 'Pause' : 'Start'),
                 ),
                 SizedBox(width: 20),
                 ElevatedButton(
                   onPressed: () {
                     setState(() {
+                      if (isRunning) {
+                        _stopwatch.stop();
+                        isRunning = false;
+                      }
                       _stopwatch.reset();
+                      hours = 0;
+                      minutes = 0;
                       seconds = 0;
-                      isRunning = false;
+                      milliseconds = 0;
+                      laps.clear();
                     });
                   },
                   child: Text('Reset'),
                 ),
+                SizedBox(width: 20),
+                ElevatedButton(
+                  onPressed: () {
+                    setState(() {
+                      if (isRunning) {
+                        laps.add(formatTime());
+                      }
+                    });
+                  },
+                  child: Text('Lap'),
+                ),
               ],
             ),
+            SizedBox(height: 20),
+            if (laps.isNotEmpty)
+              Column(
+                children: laps
+                    .map((lap) => Text(
+                          lap,
+                          style: TextStyle(fontSize: 24),
+                        ))
+                    .toList(),
+              ),
           ],
         ),
       ),
@@ -70,23 +107,42 @@ class _StopwatchPageState extends State<StopwatchPage> {
   }
 
   void startTimer() {
-    const oneSec = Duration(seconds: 1);
-    Timer.periodic(oneSec, (Timer timer) {
+    const milliSec = Duration(milliseconds: 1);
+    const autoResetDuration = Duration(minutes: 1);
+    Timer.periodic(milliSec, (Timer timer) {
       if (!isRunning) {
         timer.cancel();
       } else {
         setState(() {
-          seconds = _stopwatch.elapsed.inSeconds;
+          milliseconds = _stopwatch.elapsedMilliseconds;
+          seconds = (milliseconds / 1000).floor();
+          minutes = (seconds / 60).floor();
+          hours = (minutes / 60).floor();
+          milliseconds %= 1000;
+          seconds %= 60;
+          minutes %= 60;
         });
+
+        if (_stopwatch.elapsed > autoResetDuration) {
+          setState(() {
+            _stopwatch.reset();
+            hours = 0;
+            minutes = 0;
+            seconds = 0;
+            milliseconds = 0;
+            laps.clear();
+          });
+        }
       }
     });
   }
 
-  String formatTime(int seconds) {
-    Duration duration = Duration(seconds: seconds);
+  String formatTime() {
     String twoDigits(int n) => n.toString().padLeft(2, "0");
-    String twoDigitMinutes = twoDigits(duration.inMinutes.remainder(60));
-    String twoDigitSeconds = twoDigits(duration.inSeconds.remainder(60));
-    return "$twoDigitMinutes:$twoDigitSeconds";
+    String twoDigitMilliseconds = twoDigits(milliseconds ~/ 10);
+    String twoDigitSeconds = twoDigits(seconds);
+    String twoDigitMinutes = twoDigits(minutes);
+    String twoDigitHours = twoDigits(hours);
+    return "$twoDigitHours:$twoDigitMinutes:$twoDigitSeconds.$twoDigitMilliseconds";
   }
 }
